@@ -1,6 +1,8 @@
 import weakref
 
 from dispatch import saferef
+from tornado import gen
+from tornado.ioloop import IOLoop
 
 WEAKREF_TYPES = (weakref.ReferenceType, saferef.BoundMethodWeakref)
 
@@ -162,6 +164,17 @@ class Signal(object):
             response = receiver(signal=self, sender=sender, **named)
             responses.append((receiver, response))
         return responses
+
+    @gen.coroutine
+    def send_async(self, sender, **named):
+        receivers = self._live_receivers(_make_id(sender))
+        yield [rec(signal=self, sender=sender, **named) for rec in receivers]
+
+    @gen.coroutine
+    def send_spawn(self, sender, **named):
+        for receiver in self._live_receivers(_make_id(sender)):
+            yield IOLoop.current().spawn_callback(
+                receiver, signal=self, sender=sender, **named)
 
     def send_robust(self, sender, **named):
         """
