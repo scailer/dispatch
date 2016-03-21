@@ -1,16 +1,17 @@
 from distutils.core import setup
 
 setup(
-    name = 'dispatcher',
-    maintainer = 'Olivier Verdier',
-    maintainer_email = 'olivier.verdier@gmail.com',
-    description = 'A library for event-driven programming',
+    name = 'tornado-dispatcher',
+    maintainer = 'Vlasov Dmitriy',
+    maintainer_email = 'scailer@veles.biz',
+    description = ('A library for event-driven programmig based on '
+                   'Olivier Verdier code extended with tornado corouting'),
     packages = [
         'dispatch',
         'dispatch.tests',
     ],
     version = '1.0',
-    url = 'https://github.com/olivierverdier/dispatch',
+    url = 'https://github.com/scailer/dispatch',
     classifiers = [
         "Development Status :: 4 - Beta",
         "Operating System :: OS Independent",

@@ -1,15 +1,22 @@
 import weakref
 
 from dispatch import saferef
-from tornado import gen
-from tornado.ioloop import IOLoop
+
+try:
+    from tornado import gen
+    from tornado.ioloop import IOLoop
+    use_tornado = True
+except ImportError:
+    use_tornado = False
 
 WEAKREF_TYPES = (weakref.ReferenceType, saferef.BoundMethodWeakref)
+
 
 def _make_id(target):
     if hasattr(target, 'im_func'):
         return (id(target.im_self), id(target.im_func))
     return id(target)
+
 
 class Signal(object):
     """
@@ -165,16 +172,23 @@ class Signal(object):
             responses.append((receiver, response))
         return responses
 
-    @gen.coroutine
-    def send_async(self, sender, **named):
-        receivers = self._live_receivers(_make_id(sender))
-        yield [rec(signal=self, sender=sender, **named) for rec in receivers]
+    if use_tornado:
+        @gen.coroutine
+        def send_async(self, sender, **named):
+            """
+                Send signal using tornado coroutines. Run parallel.
+            """
+            recs = self._live_receivers(_make_id(sender))
+            yield [rec(signal=self, sender=sender, **named) for rec in recs]
 
-    @gen.coroutine
-    def send_spawn(self, sender, **named):
-        for receiver in self._live_receivers(_make_id(sender)):
-            yield IOLoop.current().spawn_callback(
-                receiver, signal=self, sender=sender, **named)
+        @gen.coroutine
+        def send_spawn(self, sender, **named):
+            """
+                Send signal using tornado spawn_callback. Run parallel.
+            """
+            for receiver in self._live_receivers(_make_id(sender)):
+                yield IOLoop.current().spawn_callback(
+                    receiver, signal=self, sender=sender, **named)
 
     def send_robust(self, sender, **named):
         """
