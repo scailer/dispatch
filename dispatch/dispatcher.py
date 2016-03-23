@@ -181,7 +181,6 @@ class Signal(object):
             recs = self._live_receivers(_make_id(sender))
             yield [rec(signal=self, sender=sender, **named) for rec in recs]
 
-        @gen.coroutine
         def send_spawn(self, sender, **named):
             """
                 Send signal using tornado spawn_callback. Run parallel.
