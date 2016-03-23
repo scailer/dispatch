@@ -30,7 +30,7 @@ class Signal(object):
 
     _debugging = False
 
-    def __init__(self, providing_args=None):
+    def __init__(self, providing_args=None, name=None):
         """
         Create a new signal.
 
@@ -41,6 +41,7 @@ class Signal(object):
         if providing_args is None:
             providing_args = []
         self.providing_args = set(providing_args)
+        self.name = name
 
     def connect(self, receiver, sender=None, weak=True, dispatch_uid=None):
         """
