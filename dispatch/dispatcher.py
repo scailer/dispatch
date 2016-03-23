@@ -186,7 +186,7 @@ class Signal(object):
                 Send signal using tornado spawn_callback. Run parallel.
             """
             for receiver in self._live_receivers(_make_id(sender)):
-                yield IOLoop.current().spawn_callback(
+                IOLoop.current().spawn_callback(
                     receiver, signal=self, sender=sender, **named)
 
     def send_robust(self, sender, **named):
