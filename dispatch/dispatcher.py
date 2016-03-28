@@ -2,13 +2,6 @@ import weakref
 
 from dispatch import saferef
 
-try:
-    from tornado import gen
-    from tornado.ioloop import IOLoop
-    use_tornado = True
-except ImportError:
-    use_tornado = False
-
 WEAKREF_TYPES = (weakref.ReferenceType, saferef.BoundMethodWeakref)
 
 
@@ -30,7 +23,7 @@ class Signal(object):
 
     _debugging = False
 
-    def __init__(self, providing_args=None, name=None):
+    def __init__(self, providing_args=None):
         """
         Create a new signal.
 
@@ -41,7 +34,6 @@ class Signal(object):
         if providing_args is None:
             providing_args = []
         self.providing_args = set(providing_args)
-        self.name = name
 
     def connect(self, receiver, sender=None, weak=True, dispatch_uid=None):
         """
@@ -173,23 +165,6 @@ class Signal(object):
             responses.append((receiver, response))
         return responses
 
-    if use_tornado:
-        @gen.coroutine
-        def send_async(self, sender, **named):
-            """
-                Send signal using tornado coroutines. Run parallel.
-            """
-            recs = self._live_receivers(_make_id(sender))
-            yield [rec(signal=self, sender=sender, **named) for rec in recs]
-
-        def send_spawn(self, sender, **named):
-            """
-                Send signal using tornado spawn_callback. Run parallel.
-            """
-            for receiver in self._live_receivers(_make_id(sender)):
-                IOLoop.current().spawn_callback(
-                    receiver, signal=self, sender=sender, **named)
-
     def send_robust(self, sender, **named):
         """
         Send signal from sender to all connected receivers catching errors.
@@ -262,3 +237,4 @@ class Signal(object):
             for idx, (r_key, _) in enumerate(self.receivers):
                 if r_key == key:
                     del self.receivers[idx]
+

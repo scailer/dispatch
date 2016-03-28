@@ -5,12 +5,13 @@ setup(
     maintainer = 'Vlasov Dmitriy',
     maintainer_email = 'scailer@veles.biz',
     description = ('A library for event-driven programmig based on '
-                   'Olivier Verdier code extended with tornado corouting'),
+                   'Olivier Verdier code extended with tornado corouting and '
+                   'redis pubsub mechanism.'),
     packages = [
         'dispatch',
         'dispatch.tests',
     ],
-    version = '1.0.4',
+    version = '1.1.0',
     url = 'https://github.com/scailer/dispatch',
     classifiers = [
         "Development Status :: 4 - Beta",

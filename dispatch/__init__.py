@@ -8,6 +8,11 @@ Heavily modified for Django's purposes.
 
 from dispatch.dispatcher import Signal
 
+try:
+    from dispatch.tornado import TornadoSignal, RedisPubSubSignal
+except ImportError:
+    pass
+
 
 def receiver(signal, **kwargs):
     """
