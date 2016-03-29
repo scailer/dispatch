@@ -3,6 +3,7 @@
 from __future__ import absolute_import
 
 import json
+import logging
 
 from dispatch.dispatcher import Signal, _make_id
 
@@ -18,6 +19,9 @@ try:
     import tornadoredis
 except ImportError:
     tornadoredis = None
+
+
+logger = logging.getLogger('tornado-signal')
 
 
 class TornadoSignal(Signal):
@@ -99,8 +103,10 @@ class RedisPubSubSignal(TornadoSignal):
         """
             Send signal over redis pub/sub mechanism
         """
-        channel_name = self.get_channel_name(self.name, sender)
-        self.redis_publisher.publish(channel_name, self.serialize(named))
+        IOLoop.current().spawn_callback(
+            self.redis_publisher.publish,
+            self.get_channel_name(self.name, sender),
+            self.serialize(named))
 
     def receive_from_redis(self, message):
         if message.kind in ('message', 'pmessage'):
