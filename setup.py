@@ -11,7 +11,7 @@ setup(
         'dispatch',
         'dispatch.tests',
     ],
-    version = '1.1.1',
+    version = '1.2.0',
     url = 'https://github.com/scailer/dispatch',
     classifiers = [
         "Development Status :: 4 - Beta",

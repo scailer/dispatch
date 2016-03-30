@@ -48,9 +48,11 @@ class TornadoSignal(Signal):
 
 
 class RedisPubSubSignal(TornadoSignal):
+    _instances = {}
     channel_prefix = 'pubsub'
     redis_publisher = None
     redis_subscriber = None
+    _debug = True
 
     def __init__(self, providing_args=None, name=None, serializer=None):
         if not(self.redis_publisher and self.redis_subscriber):
@@ -61,7 +63,7 @@ class RedisPubSubSignal(TornadoSignal):
         super(RedisPubSubSignal, self).__init__(providing_args)
         self.name = name
         self.serializer = serializer or json
-        self.listen()
+        self._instances[name] = self
 
     @classmethod
     def initialize(cls, publisher=None, subscriber=None,
@@ -86,12 +88,14 @@ class RedisPubSubSignal(TornadoSignal):
     def get_channel_name(cls, name, sender):
         return '{}:{}:{}'.format(cls.channel_prefix, name, sender)
 
+    @classmethod
     @gen.engine
-    def listen(self):
-        self.redis_subscriber.connect()
-        channel_name = self.get_channel_name(self.name, '*')
-        yield gen.Task(self.redis_subscriber.psubscribe, channel_name)
-        self.redis_subscriber.listen(self.receive_from_redis)
+    def listen(cls):
+        cls.redis_subscriber.connect()
+        _all = [cls.get_channel_name(s, '*') for s in cls._instances.keys()]
+        cls._debug and logger.debug('LISTEN: \n\t{}'.format('\n\t'.join(_all)))
+        yield gen.Task(cls.redis_subscriber.psubscribe, _all)
+        cls.redis_subscriber.listen(cls.receive_from_redis)
 
     def serialize(self, data):
         return self.serializer.dumps(data)
@@ -103,15 +107,23 @@ class RedisPubSubSignal(TornadoSignal):
         """
             Send signal over redis pub/sub mechanism
         """
+        self._debug and logger.debug('SEND TO REDIS {}:{} {}'.format(
+            self.name, sender, named))
         IOLoop.current().spawn_callback(
             self.redis_publisher.publish,
             self.get_channel_name(self.name, sender),
             self.serialize(named))
 
-    def receive_from_redis(self, message):
+    @classmethod
+    def receive_from_redis(cls, message):
+        cls._debug and logger.debug('RECEIVE FROM REDIS {}'.format(message))
         if message.kind in ('message', 'pmessage'):
-            sender = message.channel.split(':')[-1]
-            self.send_spawn(sender, **self.deserialize(message.body))
+            _pref, name, sender = message.channel.split(':')
+            signal = cls._instances.get(name)
+            if signal:
+                signal.send_spawn(sender, **signal.deserialize(message.body))
+            else:
+                logger.warning('RECEIVE UNKNOWN SIGNAL {}'.format(name))
         elif message.kind == 'disconnect':
-            self.redis_subscriber.connect()
+            cls.redis_subscriber.connect()
 
