@@ -52,7 +52,7 @@ class RedisPubSubSignal(TornadoSignal):
     channel_prefix = 'pubsub'
     redis_publisher = None
     redis_subscriber = None
-    _debug = True
+    _debug = False
 
     def __init__(self, providing_args=None, name=None, serializer=None):
         if not(self.redis_publisher and self.redis_subscriber):
