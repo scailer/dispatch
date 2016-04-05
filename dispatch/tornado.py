@@ -34,14 +34,44 @@ class TornadoSignal(Signal):
     def send_async(self, sender, **named):
         """
             Send signal using tornado coroutines. Run parallel.
+            Used when needs wait for finishing all handlings.
+
+            Arguments:
+
+                sender
+                    Any python object, initiator of action.
+
+                named
+                    Keyword arguments which will be passed to receivers.
+
+            @gen.coroutine
+            def foo():
+                yield signals.my_signal.send_async(sender=sender, data=data)
+
         """
+
         recs = self._live_receivers(_make_id(sender))
         yield [rec(signal=self, sender=sender, **named) for rec in recs]
 
     def send_spawn(self, sender, **named):
         """
             Send signal using tornado spawn_callback. Run parallel.
+            Used when wants to continue without waiting for handling
+            signal receivers.
+
+            Arguments:
+
+                sender
+                    Any python object, initiator of action.
+
+                named
+                    Keyword arguments which will be passed to receivers.
+
+            def foo():
+                signals.my_signal.send_spawn(sender=sender, data=data)
+
         """
+
         for receiver in self._live_receivers(_make_id(sender)):
             IOLoop.current().spawn_callback(
                 receiver, signal=self, sender=sender, **named)
@@ -55,6 +85,29 @@ class RedisPubSubSignal(TornadoSignal):
     _debug = False
 
     def __init__(self, providing_args=None, name=None, serializer=None):
+        """
+            Signal constructor
+
+            Arguments:
+
+                providing_args
+                    list of strings - names of arguments wich
+                    will be transferred with signal
+
+                name
+                    string of latin letters - name of signal i
+                    used in name of redis channel
+
+                serializer
+                    serializer module with "loads" and "dumps" methods, i
+                    by default python json module
+
+            my_signal = dispatch.RedisPubSubSignal(
+                providing_args=['key'],
+                name='my_signal',
+                serializer=custom_json_module)
+        """
+
         if not(self.redis_publisher and self.redis_subscriber):
             raise Exception('You must specify pub/sub clients: \n'
                             'dispatch.RedisPubSubSignal.initialize(\n'
@@ -70,6 +123,23 @@ class RedisPubSubSignal(TornadoSignal):
                    redis_cfg=None, channel_prefix=None):
         """
             Initializer pubsub clients and options
+
+            Arguments:
+
+                publisher
+                    redis.Client object or None,
+                    client for publishing messages
+
+                subscriber
+                    tornadoredis.Client or redis.Client or None,
+                    client for listen incoming messages
+
+                redis_cfg
+                    dict of config for automatic creating publisher
+                    and subscriber client objects
+
+                channel_prefix
+                    str - prefix of redis channel name
         """
 
         if not redis:
@@ -91,6 +161,22 @@ class RedisPubSubSignal(TornadoSignal):
     @classmethod
     @gen.engine
     def listen(cls):
+        """
+            Start listen incoming messages.
+
+            Call it after signals definition, else signals defined after
+            running listener will be ignored. You can define signals after
+            start listener if you don't want get messages from it. Or don't
+            call this method if you don't want get any incoming messages.
+
+            dispatch.RedisPubSubSignal.initialize(**kwargs)
+
+            my_signal = dispatch.RedisPubSubSignal(
+                providing_args=['key'], name='my_signal')
+
+            dispatch.RedisPubSubSignal.listen()
+        """
+
         cls.redis_subscriber.connect()
         _all = [cls.get_channel_name(s, '*') for s in cls._instances.keys()]
         cls._debug and logger.debug('LISTEN: \n\t{}'.format('\n\t'.join(_all)))
@@ -106,7 +192,20 @@ class RedisPubSubSignal(TornadoSignal):
     def send_redis(self, sender, **named):
         """
             Send signal over redis pub/sub mechanism
+
+            Arguments:
+
+                sender
+                    JSON-serializable python object
+
+                named
+                    Keyword arguments which will be passed to receivers,
+                    only JSON-serializable python objects
+
+            signals.my_signal.send_redis(
+                sender='some_sender', key='12345')
         """
+
         self._debug and logger.debug('SEND TO REDIS {}:{} {}'.format(
             self.name, sender, named))
         IOLoop.current().spawn_callback(
