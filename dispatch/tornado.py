@@ -239,6 +239,7 @@ class RedisPubSubSignal(TornadoSignal):
                     logger.warning('RECEIVE UNKNOWN SIGNAL {}'.format(name))
 
             except Exception as e:
+                cls.log.error('RECEIVE FROM REDIS {}'.format(message))
                 cls.log.error('RECEIVE CRASH: {}'.format(e))
                 cls.log.error(traceback.format_exc())
 
