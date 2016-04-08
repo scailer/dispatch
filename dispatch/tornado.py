@@ -86,8 +86,7 @@ class RedisPubSubSignal(TornadoSignal):
     _debug = False
     log = logger
 
-    def __init__(self, providing_args=None, name=None, serializer=None,
-                 debug=None, logger=None):
+    def __init__(self, providing_args=None, name=None, serializer=None):
         """
             Signal constructor
 
@@ -105,12 +104,6 @@ class RedisPubSubSignal(TornadoSignal):
                     serializer module with "loads" and "dumps" methods, i
                     by default python json module
 
-                debug
-                    True for debug mode (more logs)
-
-                logger
-                    custom logger
-
             my_signal = dispatch.RedisPubSubSignal(
                 providing_args=['key'],
                 name='my_signal',
@@ -124,14 +117,13 @@ class RedisPubSubSignal(TornadoSignal):
 
         super(RedisPubSubSignal, self).__init__(providing_args)
         self.name = name
-        self._debug = debug
-        self.log = logger
         self.serializer = serializer or json
         self._instances[name] = self
 
     @classmethod
     def initialize(cls, publisher=None, subscriber=None,
-                   redis_cfg=None, channel_prefix=None):
+                   redis_cfg=None, channel_prefix=None,
+                   debug=None, logger=None):
         """
             Initializer pubsub clients and options
 
@@ -151,7 +143,16 @@ class RedisPubSubSignal(TornadoSignal):
 
                 channel_prefix
                     str - prefix of redis channel name
+
+                debug
+                    True for debug mode (more logs)
+
+                logger
+                    custom logger
         """
+
+        cls._debug = debug
+        cls.log = logger
 
         if not redis:
             raise Exception('RedisPubSubSignal required redis python lib.')
