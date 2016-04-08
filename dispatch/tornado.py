@@ -3,6 +3,7 @@
 from __future__ import absolute_import
 
 import json
+import traceback
 import logging
 
 from dispatch.dispatcher import Signal, _make_id
@@ -83,8 +84,10 @@ class RedisPubSubSignal(TornadoSignal):
     redis_publisher = None
     redis_subscriber = None
     _debug = False
+    log = logger
 
-    def __init__(self, providing_args=None, name=None, serializer=None):
+    def __init__(self, providing_args=None, name=None, serializer=None,
+                 debug=None, logger=None):
         """
             Signal constructor
 
@@ -102,6 +105,12 @@ class RedisPubSubSignal(TornadoSignal):
                     serializer module with "loads" and "dumps" methods, i
                     by default python json module
 
+                debug
+                    True for debug mode (more logs)
+
+                logger
+                    custom logger
+
             my_signal = dispatch.RedisPubSubSignal(
                 providing_args=['key'],
                 name='my_signal',
@@ -115,6 +124,8 @@ class RedisPubSubSignal(TornadoSignal):
 
         super(RedisPubSubSignal, self).__init__(providing_args)
         self.name = name
+        self._debug = debug
+        self.log = logger
         self.serializer = serializer or json
         self._instances[name] = self
 
@@ -179,7 +190,7 @@ class RedisPubSubSignal(TornadoSignal):
 
         cls.redis_subscriber.connect()
         _all = [cls.get_channel_name(s, '*') for s in cls._instances.keys()]
-        cls._debug and logger.debug('LISTEN: \n\t{}'.format('\n\t'.join(_all)))
+        cls._debug and cls.log.debug('LISTEN:\n\t{}'.format('\n\t'.join(_all)))
         yield gen.Task(cls.redis_subscriber.psubscribe, _all)
         cls.redis_subscriber.listen(cls.receive_from_redis)
 
@@ -206,7 +217,7 @@ class RedisPubSubSignal(TornadoSignal):
                 sender='some_sender', key='12345')
         """
 
-        self._debug and logger.debug('SEND TO REDIS {}:{} {}'.format(
+        self._debug and self.log.debug('SEND TO REDIS {}:{} {}'.format(
             self.name, sender, named))
         IOLoop.current().spawn_callback(
             self.redis_publisher.publish,
@@ -215,14 +226,22 @@ class RedisPubSubSignal(TornadoSignal):
 
     @classmethod
     def receive_from_redis(cls, message):
-        cls._debug and logger.debug('RECEIVE FROM REDIS {}'.format(message))
+        cls._debug and cls.log.debug('RECEIVE FROM REDIS {}'.format(message))
+
         if message.kind in ('message', 'pmessage'):
-            _pref, name, sender = message.channel.split(':')
-            signal = cls._instances.get(name)
-            if signal:
-                signal.send_spawn(sender, **signal.deserialize(message.body))
-            else:
-                logger.warning('RECEIVE UNKNOWN SIGNAL {}'.format(name))
+            try:
+                _pref, name, sender = message.channel.split(':')
+                signal = cls._instances.get(name)
+                if signal:
+                    signal.send_spawn(sender, **signal.deserialize(message.body))
+                else:
+                    logger.warning('RECEIVE UNKNOWN SIGNAL {}'.format(name))
+
+            except Exception as e:
+                cls.log.error('RECEIVE CRASH: {}'.format(e))
+                cls.log.error(traceback.format_exc())
+
         elif message.kind == 'disconnect':
+            cls.log.warning('REDIS PUBSUB RECONNECT')
             cls.redis_subscriber.connect()
 
