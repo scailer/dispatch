@@ -123,7 +123,7 @@ class RedisPubSubSignal(TornadoSignal):
     @classmethod
     def initialize(cls, publisher=None, subscriber=None,
                    redis_cfg=None, channel_prefix=None,
-                   debug=None, logger=None):
+                   debug=False, logger=None):
         """
             Initializer pubsub clients and options
 
@@ -152,7 +152,9 @@ class RedisPubSubSignal(TornadoSignal):
         """
 
         cls._debug = debug
-        cls.log = logger
+
+        if logger:
+            cls.log = logger
 
         if not redis:
             raise Exception('RedisPubSubSignal required redis python lib.')
