@@ -22,7 +22,7 @@ except ImportError:
     tornadoredis = None
 
 
-logger = logging.getLogger('tornado-signal')
+log = logging.getLogger('tornado-signal')
 
 
 class TornadoSignal(Signal):
@@ -84,7 +84,7 @@ class RedisPubSubSignal(TornadoSignal):
     redis_publisher = None
     redis_subscriber = None
     _debug = False
-    log = logger
+    log = None
 
     def __init__(self, providing_args=None, name=None, serializer=None):
         """
@@ -152,9 +152,7 @@ class RedisPubSubSignal(TornadoSignal):
         """
 
         cls._debug = debug
-
-        if logger:
-            cls.log = logger
+        cls.log = logger or log
 
         if not redis:
             raise Exception('RedisPubSubSignal required redis python lib.')
@@ -238,7 +236,7 @@ class RedisPubSubSignal(TornadoSignal):
                 if signal:
                     signal.send_spawn(sender, **signal.deserialize(message.body))
                 else:
-                    logger.warning('RECEIVE UNKNOWN SIGNAL {}'.format(name))
+                    cls.log.warning('RECEIVE UNKNOWN SIGNAL {}'.format(name))
 
             except Exception as e:
                 cls.log.error('RECEIVE FROM REDIS {}'.format(message))
