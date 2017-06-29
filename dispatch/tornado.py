@@ -162,6 +162,7 @@ class RedisPubSubSignal(TornadoSignal):
         cls.redis_publisher = publisher or redis.Client(**_cfg)
 
         if tornadoredis:
+            _cfg['selected_db'] = _cfg.pop('db', _cfg.get('selected_db'))
             cls.redis_subscriber = subscriber or tornadoredis.Client(**_cfg)
         else:
             cls.redis_subscriber = subscriber or redis.Client(**_cfg)
